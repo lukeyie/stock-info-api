@@ -1,7 +1,7 @@
 package com.lukechen.stockinfoapi.controllers;
 
+import com.lukechen.stockinfoapi.entitys.PERatioEntity;
 import com.lukechen.stockinfoapi.entitys.StockEntity;
-import com.lukechen.stockinfoapi.entitys.StockPERatioEntity;
 import com.lukechen.stockinfoapi.services.StockInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -17,16 +17,18 @@ public class StockInfoController {
     @Autowired
     StockInfoService stockInfoService;
 
-    @GetMapping("/{ticker}")
-    public ResponseEntity getStockInfo(@PathVariable String ticker){
+    @GetMapping("/date-info/{ticker}")
+    public ResponseEntity<StockEntity> getStockDateInfo(@PathVariable String ticker) {
         StockEntity stockEntity = stockInfoService.getStockInfoEntityByTicker(ticker);
 
         return ResponseEntity.status(HttpStatus.OK).body(stockEntity);
     }
 
-    @GetMapping("/peratio/{ticker}")
-    public ResponseEntity getStockPERatio(@PathVariable String ticker) throws ParseException {
-        StockPERatioEntity stockPERatioEntity = stockInfoService.getStockPERatioEntity(ticker);
-        return ResponseEntity.status(HttpStatus.OK).body(stockPERatioEntity);
+    @GetMapping("/pe-ratios/{ticker}")
+    public ResponseEntity<PERatioEntity> getStockPERatios(@PathVariable String ticker)
+            throws ParseException {
+        PERatioEntity peRatioEntity = stockInfoService.getPERatioEntity(ticker);
+
+        return ResponseEntity.status(HttpStatus.OK).body(peRatioEntity);
     }
 }

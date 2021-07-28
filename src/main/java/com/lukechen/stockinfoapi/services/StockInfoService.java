@@ -2,15 +2,14 @@ package com.lukechen.stockinfoapi.services;
 
 import com.lukechen.stockinfoapi.dao.StockDAO;
 import com.lukechen.stockinfoapi.entitys.DateInfoEntity;
+import com.lukechen.stockinfoapi.entitys.IncomeStatementEntity;
+import com.lukechen.stockinfoapi.entitys.PERatioEntity;
 import com.lukechen.stockinfoapi.entitys.StockEntity;
-import com.lukechen.stockinfoapi.entitys.StockPERatioEntity;
-import lombok.var;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
@@ -23,46 +22,62 @@ public class StockInfoService {
         return findByTicker(ticker);
     }
 
-    public  StockPERatioEntity getStockPERatioEntity(String ticker) throws ParseException {
-        StockPERatioEntity stockPERatioEntity = new StockPERatioEntity();
+    public PERatioEntity getPERatioEntity(String ticker) throws ParseException {
+        PERatioEntity peRatioEntity = new PERatioEntity();
         StockEntity stockEntity = findByTicker(ticker);
-        if(stockEntity == null){
+        if (stockEntity == null) {
             return null;
         }
+        peRatioEntity.setStockName(stockEntity.getStockName());
+        peRatioEntity.setTicker(stockEntity.getTicker());
+        peRatioEntity.setPeRatios(new LinkedHashMap<>());
 
-        stockPERatioEntity.setStockName(stockEntity.getStockName());
-        stockPERatioEntity.setTicker(stockEntity.getTicker());
-        HashMap<Integer, Double> highestClose = getYearHighestClose(stockEntity.getDateInfo());
-        stockPERatioEntity.setPeRatios(getPERatios(highestClose));
+        HashMap<Integer, Float> highestCloses = getYearHighestClose(stockEntity.getDateInfo());
+        HashMap<Integer, ArrayList<IncomeStatementEntity>> epsSortedISList =
+                getEPSSortedIncomeStatements(stockEntity.getIncomeStatements());
 
+        HashMap<Integer, Float> unsortedPERatios = new HashMap<>();
+        for (Map.Entry<Integer, ArrayList<IncomeStatementEntity>> pair : epsSortedISList
+                .entrySet()) {
+            Float highestClose = highestCloses.get(pair.getKey());
+            float eps = pair.getValue().get(pair.getValue().size() - 1).getEps();
+            float peRatio = highestClose / (eps * 4);
 
-        return stockPERatioEntity;
+            unsortedPERatios.put(pair.getKey(), peRatio);
+        }
+
+        ArrayList<Integer> sortedYear = new ArrayList<>(unsortedPERatios.keySet());
+        Collections.sort(sortedYear);
+        for (Integer year : sortedYear) {
+            peRatioEntity.getPeRatios().put(year, unsortedPERatios.get(year));
+        }
+
+        return peRatioEntity;
     }
 
     private StockEntity findByTicker(String ticker) {
-            Optional<StockEntity> stockEntity = stockDAO.findOneByTicker(ticker);
+        Optional<StockEntity> stockEntity = stockDAO.findOneByTicker(ticker);
 
         return stockEntity.orElse(null);
     }
 
-    private HashMap<Integer, Double> getYearHighestClose(
-            Collection<DateInfoEntity> dateInfoEntity) throws ParseException {
+    private HashMap<Integer, Float> getYearHighestClose(Collection<DateInfoEntity> dateInfoEntity)
+            throws ParseException {
 
-        HashMap<Integer, Double> highestClose = new HashMap<>();
+        HashMap<Integer, Float> highestClose = new HashMap<>();
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
         Calendar calendar = Calendar.getInstance();
-        for(DateInfoEntity dateInfo : dateInfoEntity){
-            if(dateInfo.getClose().isNaN()){
+        for (DateInfoEntity dateInfo : dateInfoEntity) {
+            if (dateInfo.getClose().isNaN()) {
                 continue;
             }
 
             Date date = formatter.parse(dateInfo.getDate());
             calendar.setTime(date);
             Integer year = calendar.get(Calendar.YEAR);
-            if(highestClose.containsKey(year)){
+            if (highestClose.containsKey(year)) {
                 highestClose.replace(year, Math.max(highestClose.get(year), dateInfo.getClose()));
-            }
-            else{
+            } else {
                 highestClose.put(year, dateInfo.getClose());
             }
         }
@@ -70,7 +85,30 @@ public class StockInfoService {
         return highestClose;
     }
 
-    private HashMap<Integer, Double> getPERatios(HashMap<Integer, Double> highestClose){
-        return highestClose;
+    private HashMap<Integer, ArrayList<IncomeStatementEntity>> getEPSSortedIncomeStatements(
+            Collection<IncomeStatementEntity> incomeStatementEntities) {
+        HashMap<Integer, ArrayList<IncomeStatementEntity>> epsSortedISList = new HashMap<>();
+        for (IncomeStatementEntity dto : incomeStatementEntities) {
+            if (epsSortedISList.containsKey(dto.getYear())) {
+                epsSortedISList.get(dto.getYear()).add(dto);
+            } else {
+                epsSortedISList.put(dto.getYear(), new ArrayList<>());
+                epsSortedISList.get(dto.getYear()).add(dto);
+            }
+        }
+
+        Iterator<Map.Entry<Integer, ArrayList<IncomeStatementEntity>>> iterator =
+                epsSortedISList.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<Integer, ArrayList<IncomeStatementEntity>> pair = iterator.next();
+            if (pair.getValue().size() != 4) {
+                iterator.remove();
+                continue;
+            }
+            pair.getValue().sort(Comparator
+                    .<IncomeStatementEntity, Float>comparing(IncomeStatementEntity::getEps));
+        }
+
+        return epsSortedISList;
     }
 }

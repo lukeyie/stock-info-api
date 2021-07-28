@@ -8,9 +8,9 @@ import lombok.Setter;
 public class DateInfoEntity {
 
     String date;
-    Double open;
-    Double close;
-    Double high;
-    Double low;
+    Float open;
+    Float close;
+    Float high;
+    Float low;
     Integer volume;
 }

@@ -3,13 +3,13 @@ package com.lukechen.stockinfoapi.entitys;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 
 @Getter
 @Setter
-public class StockPERatioEntity {
+public class PERatioEntity {
 
     String stockName;
     String ticker;
-    HashMap<Integer, Double> peRatios;
+    LinkedHashMap<Integer, Float> peRatios;
 }
