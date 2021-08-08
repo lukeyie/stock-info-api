@@ -5,6 +5,7 @@ import com.lukechen.stockinfoapi.entitys.DateInfoEntity;
 import com.lukechen.stockinfoapi.entitys.IncomeStatementEntity;
 import com.lukechen.stockinfoapi.entitys.PERatioEntity;
 import com.lukechen.stockinfoapi.entitys.StockEntity;
+import com.lukechen.stockinfoapi.entitys.YearPERatioPairEntity;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -30,27 +31,27 @@ public class StockInfoService {
         }
         peRatioEntity.setStockName(stockEntity.getStockName());
         peRatioEntity.setTicker(stockEntity.getTicker());
-        peRatioEntity.setPeRatios(new LinkedHashMap<>());
+        peRatioEntity.setPeRatios(new LinkedList<>());
 
         HashMap<Integer, Float> highestCloses = getYearHighestClose(stockEntity.getDateInfo());
         HashMap<Integer, ArrayList<IncomeStatementEntity>> epsSortedISList =
                 getEPSSortedIncomeStatements(stockEntity.getIncomeStatements());
 
-        HashMap<Integer, Float> unsortedPERatios = new HashMap<>();
+        LinkedList<YearPERatioPairEntity> sortedPERatios = new LinkedList<>();
         for (Map.Entry<Integer, ArrayList<IncomeStatementEntity>> pair : epsSortedISList
                 .entrySet()) {
             Float highestClose = highestCloses.get(pair.getKey());
             float eps = pair.getValue().get(pair.getValue().size() - 1).getEps();
             float peRatio = highestClose / (eps * 4);
 
-            unsortedPERatios.put(pair.getKey(), peRatio);
+            YearPERatioPairEntity yearPERatioPairEntity = new YearPERatioPairEntity();
+            yearPERatioPairEntity.setYear(pair.getKey());
+            yearPERatioPairEntity.setPeRatio(peRatio);
+            sortedPERatios.add(yearPERatioPairEntity);
         }
 
-        ArrayList<Integer> sortedYear = new ArrayList<>(unsortedPERatios.keySet());
-        Collections.sort(sortedYear);
-        for (Integer year : sortedYear) {
-            peRatioEntity.getPeRatios().put(year, unsortedPERatios.get(year));
-        }
+        sortedPERatios.sort((a, b) -> a.getYear().compareTo(b.getYear()));
+        peRatioEntity.setPeRatios(sortedPERatios);
 
         return peRatioEntity;
     }

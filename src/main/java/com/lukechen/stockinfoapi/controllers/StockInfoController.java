@@ -29,6 +29,8 @@ public class StockInfoController {
             throws ParseException {
         PERatioEntity peRatioEntity = stockInfoService.getPERatioEntity(ticker);
 
-        return ResponseEntity.status(HttpStatus.OK).body(peRatioEntity);
+
+        return peRatioEntity != null ? ResponseEntity.status(HttpStatus.OK).body(peRatioEntity)
+                : ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
     }
 }
